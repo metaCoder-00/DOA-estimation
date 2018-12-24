@@ -5,12 +5,12 @@ function [theta, spectrum] = MUSIC(data, f, sourceNum, sensorNum)
 %---@       sensorNum: number of sensors---%
 %---@Output: spectrum of MUSIC--%
     covMat = (data*data')/size(data, 2);    % Covariance matrix
-    [eigenVcts, eigenVals] = eig(covMat);   % Eigen factorization
+    [eigenVec, eigenVals] = eig(covMat);   % Eigen factorization
     eigenVals = diag(eigenVals);
     [~, index] = sort(eigenVals);
-    noiseSubspace = eigenVcts(:, index(1: sensorNum - sourceNum));
+    noiseSubspace = eigenVec(:, index(1: sensorNum - sourceNum));
     
-    theta = (-90: 0.1:90)';
+    theta = (-30: 0.1: 30)';
     spectrum = zeros(length(theta), 1);
     c = 3e8;
     margin = (c/f)/2;                     % Let distance between 2 adjacent sensors equal to wavelength/2    
