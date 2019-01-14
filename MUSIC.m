@@ -1,4 +1,4 @@
-function [theta, spectrum] = MUSIC(data, f, sourceNum, sensorNum)
+function [theta, spectrum] = MUSIC(data, f, sourceNum, sensorNum, margin)
 %---@Input: data (x = As + n)------%
 %---@       f: frequency (Hz)---%
 %---@       sourceNum: number of sources---%
@@ -13,9 +13,9 @@ function [theta, spectrum] = MUSIC(data, f, sourceNum, sensorNum)
     theta = (-30: 0.1: 30)';
     spectrum = zeros(length(theta), 1);
     c = 3e8;
-    margin = (c/f)/2;                     % Let distance between 2 adjacent sensors equal to wavelength/2    
+%     margin = (c/f)/2;                     % Let distance between 2 adjacent sensors equal to wavelength/2    
     for itr = 1: length(theta)
-        steeringVct = exp(-1j*2*pi*f*(margin*(0: sensorNum - 1)'*sind(theta(itr)))/c);
-        spectrum(itr) = (steeringVct'*steeringVct)/(steeringVct'*(noiseSubspace*noiseSubspace')*steeringVct);
+        steeringVec = exp(-1j*2*pi*f*(margin*(0: sensorNum - 1)'*sind(theta(itr)))/c);
+        spectrum(itr) = (steeringVec'*steeringVec)/(steeringVec'*(noiseSubspace*noiseSubspace')*steeringVec);
     end
 end

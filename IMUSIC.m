@@ -1,7 +1,7 @@
 function [theta, spectrum] = IMUSIC()
     SNR = 15;
     sensorNum = 8;
-    theta_S = [-20; 15];
+    theta_S = [-25; 15];
     sourceNum = length(theta_S);
 %----Signal bandwidth: 2MHz, center freq: 11MHz fs: 10e6-----%
     fs = 10e6;
@@ -43,10 +43,10 @@ function [theta, spectrum] = IMUSIC()
     end
     
     theta = (-30: 0.1: 30)';
-    spectrum = zeros(size(theta, 1), nFFT/2);
-    for freqPos = 1: nFFT/2
-        f = (freqPos - 1)*(fs/nFFT) + f_begin;
-        [~, narrowBandSpec] = MUSIC(2*dataSet(:, :, freqPos), f, sourceNum, sensorNum);
+    spectrum = zeros(size(theta, 1), nFFT);
+    for freqPos = 1: nFFT
+        f = (freqPos - 1)*(bandwidth/nFFT) + f_begin;
+        [~, narrowBandSpec] = MUSIC(dataSet(:, :, freqPos), f, sourceNum, sensorNum, margin);
 %         spectrum = spectrum + narrowBandSpec;
         spectrum(:, freqPos) = narrowBandSpec;
     end
