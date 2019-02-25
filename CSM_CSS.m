@@ -3,7 +3,7 @@ function [theta, spectrum] = CSM_CSS()
     sensorNum = 8;
     theta_S = [-15; 10];
     sourceNum = length(theta_S);
-%----Signal bandwidth: 2MHz, center freq: 11MHz fs: 10e6-----%
+    %----Signal bandwidth: 2MHz, center freq: 11MHz fs: 10e6-----%
     fs = 10e6;
     f_begin = 10e6;
     f_end = 12e6;
