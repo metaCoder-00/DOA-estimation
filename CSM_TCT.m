@@ -1,13 +1,13 @@
 function [theta, spectrum] = CSM_TCT()
     SNR = 15;
     sensorNum = 8;
-    theta_S = [-15; 10];
+    theta_S = [-10; 0];
     sourceNum = length(theta_S);
-    %----Signal bandwidth: 2MHz, center freq: 11MHz fs: 10e6-----%
-    fs = 10e6;
-    f_begin = 10e6;
+    %----Signal bandwidth: 4MHz, center freq: 10MHz fs: 8e6-----%
+    f_begin = 8e6;
     f_end = 12e6;
     bandwidth = f_end - f_begin;
+    fs = 2*bandwidth;
     narrowBandwidth = 1e2;
     narrowBandNum = bandwidth/narrowBandwidth;
     
@@ -44,18 +44,24 @@ function [theta, spectrum] = CSM_TCT()
         end
     end
     
-    preEstTheta = theta_S + rand();
+    preEstTheta = theta_S + 0.25*randn();
     estManifold = zeros(sensorNum, sourceNum);
     focusFreqSignalCorreMat = 0;
+    singularValsSum = 0;
     %------form signal correlation matrices and manifold in each frequency bin------%
     for freqPos = 1: nFFT
-        f = (freqPos - 1)*(bandwidth/nFFT) + f_begin;
+        if freqPos <= nFFT/2
+            f = fs + (freqPos - 1)*fs/nFFT;
+        else
+            f = (f_end + bandwidth) - (freqPos - 1)*fs/nFFT;
+        end
         data = dataSet(:, :, freqPos);
         covMat = (data*data')/size(data, 2);
         [~, eigenVals] = eig(covMat);
         eigenVals = diag(eigenVals);
         noisePower = min(eigenVals);
         cleanedData = covMat - noisePower*eye(sensorNum);
+        singularValsSum = singularValsSum + svd(cleanedData);
         for col = 1: sourceNum
             estManifold(:, col) = exp(-1j*2*pi*f*((distance*sind(preEstTheta(col)))/c));
         end
@@ -64,8 +70,21 @@ function [theta, spectrum] = CSM_TCT()
     end
     focusFreqSignalCorreMat = focusFreqSignalCorreMat/nFFT;
     %------form focus matrices------%
-    focusFreq = (f_begin + f_end)/2;
+%     focusFreq = (f_begin + f_end)/2;
     focusManifold = zeros(sensorNum, sourceNum);
+    cost = inf;
+    for freqPos = 1: nFFT/2
+        f = fs + (freqPos - 1)*fs/nFFT;
+        for col = 1: sourceNum
+            focusManifold(:, col) = exp(-1j*2*pi*f*((distance*sind(preEstTheta(col)))/c));
+        end
+        focusData = focusManifold*focusFreqSignalCorreMat*focusManifold';
+        thisCost = sum(abs(svd(focusData) - singularValsSum/nFFT).^2);
+        if thisCost < cost
+            focusFreq = f;
+            cost = thisCost;
+        end
+    end
     for col = 1: sourceNum
         focusManifold(:, col) = exp(-1j*2*pi*focusFreq*((distance*sind(preEstTheta(col)))/c));
     end
@@ -93,5 +112,5 @@ function [theta, spectrum] = CSM_TCT()
     covMat_TCT = covMat_TCT/nFFT;
     
     %-------MUSIC---------%
-    [theta, spectrum] = MUSIC(covMat_TCT, f_end, sourceNum, sensorNum, margin);
+    [theta, spectrum] = MUSIC(covMat_TCT, focusFreq, sourceNum, sensorNum, margin);
 end

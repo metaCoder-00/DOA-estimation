@@ -1,17 +1,17 @@
 function [theta, spectrum] = CSM_CSS()
-    SNR = 15;
+    SNR = 25;
     sensorNum = 8;
-    theta_S = [-15; 10];
+    theta_S = [-10; 20];
     sourceNum = length(theta_S);
-    %----Signal bandwidth: 2MHz, center freq: 11MHz fs: 10e6-----%
-    fs = 10e6;
-    f_begin = 10e6;
+    %----Signal bandwidth: 4MHz, center freq: 10MHz fs: 8e6-----%
+    f_begin = 8e6;
     f_end = 12e6;
     bandwidth = f_end - f_begin;
+    fs = 2*bandwidth;
     narrowBandwidth = 1e2;
     narrowBandNum = bandwidth/narrowBandwidth;
     
-    freqSnapshots = 100;
+    freqSnapshots = 200;
     nFFT = 64;
     
     
@@ -24,7 +24,7 @@ function [theta, spectrum] = CSM_CSS()
     
     receivedData = zeros(sensorNum, snapshots);
     manifoldMat = zeros(sensorNum, sourceNum);
-    signalCovMat = [1, 0.99; 0.99, 1];
+    signalCovMat = [1, 0.5; 0.5, 1];
     for bandNum = 1: narrowBandNum
         f = f_begin + (bandNum - 1)*narrowBandwidth;
         signalAmp = mvnrnd(zeros(sourceNum, 1), signalCovMat, snapshots).';
@@ -44,15 +44,20 @@ function [theta, spectrum] = CSM_CSS()
         end
     end
     
-    preEstTheta = theta_S + rand();
+    preEstTheta = theta_S + 0.25*randn();
     %---------form tansform matrix-------%
+    focusFreq = (f_begin + f_end)/2;
     transMat = zeros(sensorNum, sensorNum, nFFT);
     preManifoldMat = zeros(sensorNum, sourceNum);
     for col = 1: sourceNum
-        manifoldMat(:, col) = exp(-1j*2*pi*f_end*((distance*sind(preEstTheta(col)))/c));
+        manifoldMat(:, col) = exp(-1j*2*pi*focusFreq*((distance*sind(preEstTheta(col)))/c));
     end
     for freqPos = 1: nFFT
-        f = (freqPos - 1)*(bandwidth/nFFT) + f_begin;
+        if freqPos <= nFFT/2
+            f = fs + (freqPos - 1)*fs/nFFT;
+        else
+            f = (f_end + bandwidth) - (freqPos - 1)*fs/nFFT;
+        end
         for col = 1: sourceNum
             preManifoldMat(:, col) = exp(-1j*2*pi*f*((distance*sind(preEstTheta(col)))/c));
         end
@@ -70,5 +75,5 @@ function [theta, spectrum] = CSM_CSS()
     transCovMat = transCovMat/nFFT;
     
     %-------MUSIC---------%
-    [theta, spectrum] = MUSIC(transCovMat, f_end, sourceNum, sensorNum, margin);
+    [theta, spectrum] = MUSIC(transCovMat, focusFreq, sourceNum, sensorNum, margin);
 end

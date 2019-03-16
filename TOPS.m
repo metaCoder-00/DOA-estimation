@@ -3,11 +3,11 @@ function [theta, spectrum] = TOPS()
     sensorNum = 8;
     theta_S = [-20; 13];
     sourceNum = length(theta_S);
-%----Signal bandwidth: 2MHz, center freq: 11MHz fs: 10e6-----%
-    fs = 10e6;
-    f_begin = 10e6;
+%----Signal bandwidth: 4MHz, center freq: 10MHz fs: 8e6-----%
+    f_begin = 8e6;
     f_end = 12e6;
     bandwidth = f_end - f_begin;
+    fs = 2*bandwidth;
     narrowBandwidth = 1e2;
     narrowBandNum = bandwidth/narrowBandwidth;
     
@@ -60,7 +60,11 @@ function [theta, spectrum] = TOPS()
             [~, index] = sort(eigenVals, 'ascend');
             noiseSubspace = eigenVec(:, index(1: sensorNum - sourceNum));
             
-            f = (freqPos - 1)*(bandwidth/nFFT) + f_begin;
+            if freqPos <= nFFT/2
+                f = fs + (freqPos - 1)*fs/nFFT;
+            else
+                f = (f_end + bandwidth) - (freqPos - 1)*fs/nFFT;
+            end
             deltaF = f - f_begin;
             steeringVec = exp(-1j*2*pi*deltaF*(margin*(0: sensorNum - 1)'*sind(theta(itr)))/c);
             unitaryMat = diag(steeringVec);
