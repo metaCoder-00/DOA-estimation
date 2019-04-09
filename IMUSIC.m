@@ -26,7 +26,7 @@ function [theta, spectrum] = IMUSIC()
     manifoldMat = zeros(sensorNum, sourceNum);
     for bandNum = 1: narrowBandNum
         f = f_begin + (bandNum - 1)*narrowBandwidth;
-        signalMat = [exp(-1j*2*pi*f*Ns); exp(-1j*2*pi*f*Ns)];
+        signalMat = [exp(1j*2*pi*f*Ns); exp(1j*2*pi*f*Ns)];
         for col = 1: sourceNum
             manifoldMat(:, col) = exp(-1j*2*pi*f*((distance*sind(theta_S(col)))/c));
         end

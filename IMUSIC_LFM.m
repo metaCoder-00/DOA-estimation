@@ -1,50 +1,43 @@
-function [theta, spectrum] = CSM_TCT()
-    SNR = 15;
-    sensorNum = 8;
-    theta_S = [-10; 0];
-    sourceNum = length(theta_S);
-    %----Signal bandwidth: 4MHz, center freq: 10MHz fs: 8e6-----%
-    f_begin = 8e6;
-    f_end = 12e6;
-    bandwidth = f_end - f_begin;
-    fs = 2*bandwidth;
-    narrowBandwidth = 1e2;
-    narrowBandNum = bandwidth/narrowBandwidth;
-    
-    freqSnapshots = 100;
-    nFFT = 64;
-    
-    
-    c = 3e8;
-    Ts = 1/fs;
-    snapshots = freqSnapshots*nFFT;
-    Ns = Ts*(0: snapshots - 1);
-    margin = (c/f_end)/2;
-    distance = margin*(0: sensorNum - 1)';
-    
-    receivedData = zeros(sensorNum, snapshots);
-    manifoldMat = zeros(sensorNum, sourceNum);
-    signalCovMat = [1, 0.99; 0.99, 1];
-    for bandNum = 1: narrowBandNum
-        f = f_begin + (bandNum - 1)*narrowBandwidth;
-        signalAmp = mvnrnd(zeros(sourceNum, 1), signalCovMat, snapshots).';
-        signalMat = [exp(1j*2*pi*f*Ns); exp(1j*2*pi*f*Ns)].*signalAmp;
-        for col = 1: sourceNum
-            manifoldMat(:, col) = exp(-1j*2*pi*f*((distance*sind(theta_S(col)))/c));
-        end
-        receivedData = receivedData + manifoldMat*signalMat;
+SNR = 15;
+sensorNum = 8;
+theta_S = [-20, 15];
+sourceNum = length(theta_S);
+
+f_begin = [800e6, 900e6];
+f_end = [1200e6, 1100e6];
+bandwidth = f_end - f_begin;
+fs = 2*(max(f_end) - max(f_begin));
+
+freqSnapshots = 100;
+nFFT = 64;
+snapshots = freqSnapshots*nFFT;
+Ts = (1/fs)*(0: snapshots - 1)';
+
+c = 3e8;
+margin = (c/max(f_end))/2;
+distance = margin*(0: sensorNum - 1)';
+
+receivedData = zeros(sensorNum, snapshots);
+for arrayNum = 1: sensorNum
+    for signalNum = 1: sourceNum
+        delay = (margin*sind(theta_S(signalNum)))/c;
+        grad = bandwidth(signalNum)/Ts(end);
+        receivedData(arrayNum, :) = receivedData(arrayNum, :) + (randn(snapshots, 1).*...
+                                    exp(1j*2*pi*(f_begin(signalNum)*(Ts - delay) + ...
+                                    (1/2)*grad*(Ts - delay).^2))).';                                    
     end
-    receivedData = awgn(receivedData, SNR, 'measured');
-    
-    dataSet = zeros(sensorNum, freqSnapshots, nFFT);
-    for slice = 1: freqSnapshots
-        dataSlice = receivedData(:, (slice - 1)*nFFT + 1: slice*nFFT);
-        for eachSensor = 1: sensorNum
-            dataSet(eachSensor, slice, :) = fft(dataSlice(eachSensor, :), nFFT);
-        end
+end
+receivedData = awgn(receivedData, SNR, 'measured');
+
+dataSet = zeros(sensorNum, freqSnapshots, nFFT);
+for slice = 1: freqSnapshots
+    dataSlice = receivedData(:, (slice - 1)*nFFT + 1: slice*nFFT);
+    for eachSensor = 1: sensorNum
+        dataSet(eachSensor, slice, :) = fft(dataSlice(eachSensor, :), nFFT);
     end
-    
-    preEstTheta = theta_S + 0.25*randn();
+end
+
+preEstTheta = theta_S + 0.25*randn();
     estManifold = zeros(sensorNum, sourceNum);
     focusFreqSignalCorreMat = 0;
     singularValsSum = 0;
@@ -53,7 +46,7 @@ function [theta, spectrum] = CSM_TCT()
         if freqPos <= nFFT/2
             f = fs + (freqPos - 1)*fs/nFFT;
         else
-            f = (f_end + bandwidth) - (freqPos - 1)*fs/nFFT;
+            f = (max(f_end) + fs/2) - (freqPos - 1)*fs/nFFT;
         end
         data = dataSet(:, :, freqPos);
         covMat = (data*data')/size(data, 2);
@@ -70,7 +63,7 @@ function [theta, spectrum] = CSM_TCT()
     end
     focusFreqSignalCorreMat = focusFreqSignalCorreMat/nFFT;
     %------form focus matrices------%
-    focusFreq = (f_begin + f_end)/2;
+    focusFreq = (max(f_begin) + max(f_end))/2;
     focusManifold = zeros(sensorNum, sourceNum);
 %     cost = inf;
 %     for freqPos = 1: nFFT/2
@@ -113,4 +106,10 @@ function [theta, spectrum] = CSM_TCT()
     
     %-------MUSIC---------%
     [theta, spectrum] = MUSIC(covMat_TCT, focusFreq, sourceNum, sensorNum, margin);
-end
+
+plot(theta, 10*log10(abs(spectrum)/max(abs(spectrum))))
+grid on
+set(gca, 'XTICK', -30: 5: 30)
+xlabel('angle/degree')
+ylabel('spectrum/dB')
+title('TCT-LFM')
