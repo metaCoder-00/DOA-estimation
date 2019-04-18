@@ -6,6 +6,7 @@ function [theta, spectrum] = TOPS()
 %----Signal bandwidth: 4MHz, center freq: 10MHz fs: 8e6-----%
     f_begin = 8e6;
     f_end = 12e6;
+    fc = (f_begin + f_end)/2;
     bandwidth = f_end - f_begin;
     fs = 2*bandwidth;
     narrowBandwidth = 1e2;
@@ -33,13 +34,13 @@ function [theta, spectrum] = TOPS()
         receivedData = receivedData + manifoldMat*signalMat;
     end
     receivedData = awgn(receivedData, SNR, 'measured');
+    receivedData = receivedData.*exp(-1j*2*pi*fc*Ns);
     
     dataSet = zeros(sensorNum, freqSnapshots, nFFT);
     for slice = 1: freqSnapshots
         dataSlice = receivedData(:, (slice - 1)*nFFT + 1: slice*nFFT);
-        for eachSensor = 1: sensorNum
-            dataSet(eachSensor, slice, :) = fft(dataSlice(eachSensor, :), nFFT);
-        end
+        dataSlice = fft(dataSlice, nFFT, 2);
+        dataSet(:, slice, :) = dataSlice;
     end
     
     theta = (-30: 0.1: 30)';
@@ -61,11 +62,11 @@ function [theta, spectrum] = TOPS()
             noiseSubspace = eigenVec(:, index(1: sensorNum - sourceNum));
             
             if freqPos <= nFFT/2
-                f = fs + (freqPos - 1)*fs/nFFT;
+                f = fc + (freqPos - 1)*fs/nFFT;
             else
-                f = (f_end + bandwidth) - (freqPos - 1)*fs/nFFT;
+                f = (fc - fs) + (freqPos - 1)*fs/nFFT;
             end
-            deltaF = f - f_begin;
+            deltaF = f - fc;
             steeringVec = exp(-1j*2*pi*deltaF*(margin*(0: sensorNum - 1)'*sind(theta(itr)))/c);
             unitaryMat = diag(steeringVec);
             projectionMat = eye(sensorNum) - pinv(steeringVec'*steeringVec)*(steeringVec*steeringVec');

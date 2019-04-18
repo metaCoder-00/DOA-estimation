@@ -6,6 +6,7 @@ function [theta, spectrum] = IMUSIC()
 %----Signal bandwidth: 4MHz, center freq: 10MHz fs: 10MHz-----%
     f_begin = 8e6;
     f_end = 12e6;
+    fc = (f_begin + f_end)/2;
     bandwidth = f_end - f_begin;
     fs = 2*bandwidth;
     narrowBandwidth = 1e2;
@@ -33,22 +34,22 @@ function [theta, spectrum] = IMUSIC()
         receivedData = receivedData + manifoldMat*signalMat;
     end
     receivedData = awgn(receivedData, SNR, 'measured');
+    receivedData = receivedData.*exp(-1j*2*pi*fc*Ns);
     
     dataSet = zeros(sensorNum, freqSnapshots, nFFT);
     for slice = 1: freqSnapshots
         dataSlice = receivedData(:, (slice - 1)*nFFT + 1: slice*nFFT);
-        for eachSensor = 1: sensorNum
-            dataSet(eachSensor, slice, :) = fft(dataSlice(eachSensor, :), nFFT);
-        end
+        dataSlice = fft(dataSlice, nFFT, 2);
+        dataSet(:, slice, :) = dataSlice;
     end
     
     theta = (-30: 0.1: 30)';
     spectrum = zeros(size(theta, 1), nFFT);
     for freqPos = 1: nFFT
         if freqPos <= nFFT/2
-            f = fs + (freqPos - 1)*fs/nFFT;
+            f = fc + (freqPos - 1)*fs/nFFT;
         else
-            f = (f_end + bandwidth) - (freqPos - 1)*fs/nFFT;
+            f = (fc - fs) + (freqPos - 1)*fs/nFFT;
         end
         [~, narrowBandSpec] = MUSIC(dataSet(:, :, freqPos), f, sourceNum, sensorNum, margin);
 %         spectrum = spectrum + narrowBandSpec;
