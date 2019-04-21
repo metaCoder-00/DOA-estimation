@@ -8,7 +8,7 @@ f_end = [1400e6, 1400e6];
 fc = 1000e6;
 bandwidth = f_end - f_begin;
 fs = 2*max(bandwidth);
-narrowBandwidth = 1e7;
+narrowBandwidth = 1e6;
 narrowBandNum = bandwidth/narrowBandwidth;
 
 freqSnapshots = 100;
