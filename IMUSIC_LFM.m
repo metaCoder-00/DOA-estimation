@@ -3,14 +3,14 @@ sensorNum = 8;
 theta_S = [-15, 5];
 sourceNum = length(theta_S);
 
-f_begin = [800e6, 900e6];
-f_end = [1200e6, 1500e6];
+f_begin = [600e6, 1000e6];
+f_end = [1400e6, 1400e6];
 fc = 1000e6;
 bandwidth = f_end - f_begin;
 fs = 2*max(bandwidth);
 
 freqSnapshots = 100;
-nFFT = 128;
+nFFT = 256;
 snapshots = freqSnapshots*nFFT;
 Ts = (1/fs)*(0: snapshots - 1)' + 0.005;
 
@@ -28,7 +28,7 @@ for m = 1: sensorNum
     end
 end
 receivedData = awgn(receivedData, SNR, 'measured');
-receivedData = receivedData.*exp(-1j*2*pi*fc*Ts).';
+receivedData = receivedData.*exp(-1j*2*pi*fc*Ts');
 
 dataSet = zeros(sensorNum, freqSnapshots, nFFT);
 for slice = 1: freqSnapshots
@@ -38,19 +38,20 @@ for slice = 1: freqSnapshots
 end
 
 theta = (-30: 0.1: 30)';
-spectrum = zeros(length(theta), 1);
+spectrum = zeros(size(theta));
 for freqBin = 1: nFFT
-    data = dataSet(:, :, freqBin);
-    covMat = data*data'/freqSnapshots;
-    [eigVecs, eigVals] = eig(covMat);
-    eigVals = diag(eigVals);
-    [~, index] = sort(eigVals);
-    noiseSubspace = eigVecs(:, index(1: sensorNum - sourceNum));
     if freqBin <= nFFT/2
         f = fc + (freqBin - 1)*fs/nFFT;
     else
         f = (fc - fs) + (freqBin - 1)*fs/nFFT;
     end
+    data = dataSet(:, :, freqBin);
+    covMat = data*data'/freqSnapshots;
+    [eigVecs, eigVals] = eig(covMat);
+    eigVals = diag(eigVals);
+    [eigVals, index] = sort(eigVals);
+    sourceNum = AIC(freqSnapshots, sensorNum, flip(eigVals));
+    noiseSubspace = eigVecs(:, index(1: sensorNum - sourceNum));
     for n = 1: length(theta)
         steerVec = exp(-1j*2*pi*f*(margin*(0: sensorNum - 1)'*sind(theta(n)))/c);
         spectrum(n) = spectrum(n) + ...
@@ -62,11 +63,11 @@ spectrum = spectrum/nFFT;
 plot(theta, 10*log10(abs(spectrum)/max(abs(spectrum))))
 grid on
 hold on
-for n = 1: sourceNum
+for n = 1: length(theta_S)
     plot([theta_S(n), theta_S(n)], get(gca, 'YLim'), '--r')
 end
 hold off
 set(gca, 'XTICK', -30: 5: 30)
 xlabel('angle/degree')
 ylabel('spectrum/dB')
-title('TCT-LFM')
+title('IMUSIC-LFM')
