@@ -1,36 +1,40 @@
 SNR = 15;
 sensorNum = 8;
-theta_S = [-20, 13];
+theta_S = [-15, 5];
 sourceNum = length(theta_S);
 
-f_begin = [600e6, 1000e6];
-f_end = [1400e6, 1400e6];
-fc = 1000e6;
+f_begin = [600, 1000];
+f_end = [1400, 1400];
+fc = 1000;
 bandwidth = f_end - f_begin;
 fs = 2*max(bandwidth);
-narrowBandwidth = 1e6;
+narrowBandwidth = 1;
 narrowBandNum = bandwidth/narrowBandwidth;
 
 freqSnapshots = 100;
-nFFT = 256;
+nFFT = 1024;
 snapshots = freqSnapshots*nFFT;
 Ts = (1/fs)*(0: snapshots - 1)' + 0.005;
 
 c = 3e8;
 margin = (c/max(f_end))/2;
 
+test = 0;
+
 receivedData = zeros(sensorNum, snapshots);
 for n = 1: sourceNum
-    for bandNum = 1: narrowBandNum(sourceNum)
-        f = f_begin(sourceNum) + (bandNum - 1)*narrowBandwidth;
+    for bandNum = 1: narrowBandNum(n)
+        f = f_begin(n) + (bandNum - 1)*narrowBandwidth;
         steerVec = exp(-1j*2*pi*f*((margin*(0: sensorNum - 1)'*sind(theta_S(n))/c)));
         signalVec = exp(1j*2*pi*f*Ts');
+        test = test + signalVec;
         receivedData = receivedData + steerVec*signalVec;
     end
 end
 
 receivedData = awgn(receivedData, SNR, 'measured');
 receivedData = receivedData.*exp(-1j*2*pi*fc*Ts');
+test = test.*exp(-1j*2*pi*fc*Ts');
 
 dataSet = zeros(sensorNum, freqSnapshots, nFFT);
 for slice = 1: freqSnapshots
