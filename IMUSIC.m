@@ -12,7 +12,7 @@ narrowBandwidth = 1;
 narrowBandNum = bandwidth/narrowBandwidth;
 
 freqSnapshots = 100;
-nFFT = 1024;
+nFFT = 256;
 snapshots = freqSnapshots*nFFT;
 Ts = (1/fs)*(0: snapshots - 1)' + 0.005;
 
@@ -26,7 +26,7 @@ for n = 1: sourceNum
     for bandNum = 1: narrowBandNum(n)
         f = f_begin(n) + (bandNum - 1)*narrowBandwidth;
         steerVec = exp(-1j*2*pi*f*((margin*(0: sensorNum - 1)'*sind(theta_S(n))/c)));
-        signalVec = exp(1j*2*pi*f*Ts');
+        signalVec = exp(1j*2*pi*(f*Ts' + rand()));
         test = test + signalVec;
         receivedData = receivedData + steerVec*signalVec;
     end
